@@ -1,13 +1,47 @@
 import Head from 'next/head';
 import Product from '../components/Product';
-import prisma from '../lib/prisma';
+
+const mockProducts = [
+  {
+    id: 1,
+    name: 'Helmet',
+    description: 'A stylish helmet for your everyday adventures',
+    price: '49.99',
+    image: '/images/helmet.jpg',
+    category: { id: 1, name: 'Gear', description: 'Outdoor gear and equipment' }
+  },
+  {
+    id: 2,
+    name: 'T-Shirt',
+    description: 'Comfortable cotton t-shirt for daily wear',
+    price: '29.99',
+    image: '/images/shirt.jpg',
+    category: { id: 2, name: 'Clothing', description: 'Apparel and fashion items' }
+  },
+  {
+    id: 3,
+    name: 'Socks',
+    description: 'High-quality socks for maximum comfort',
+    price: '9.99',
+    image: '/images/socks.jpg',
+    category: { id: 2, name: 'Clothing', description: 'Apparel and fashion items' }
+  },
+  {
+    id: 4,
+    name: 'Sweatshirt',
+    description: 'Warm and cozy sweatshirt for cold days',
+    price: '59.99',
+    image: '/images/sweatshirt.jpg',
+    category: { id: 2, name: 'Clothing', description: 'Apparel and fashion items' }
+  }
+];
 
 export default function Home({ products }) {
   return (
     <div>
       <Head>
-        <title>PlanetScale Next.js Quickstart</title>
-        <meta name="description" content="PlanetScale Quickstart for Next.js" />
+        <title>Next.js Starter</title>
+        <meta name="description" content="Next.js Starter Demo" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
@@ -28,19 +62,8 @@ export default function Home({ products }) {
   );
 }
 
-export async function getStaticProps(context) {
-  const data = await prisma.product.findMany({
-    include: {
-      category: true,
-    },
-  });
-
-  //convert decimal value to string to pass through as json
-  const products = data.map((product) => ({
-    ...product,
-    price: product.price.toString(),
-  }));
+export async function getStaticProps() {
   return {
-    props: { products },
+    props: { products: mockProducts },
   };
 }
