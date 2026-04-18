@@ -25,13 +25,6 @@ export default function Home() {
 
     loadProducts();
   }, [dispatch]);
-  
-  // Bug 2: 页面挂载时总是清空筛选状态
-  // 这导致从商品详情页返回时，筛选状态丢失
-  useEffect(() => {
-    // Bug: 每次组件挂载都清空筛选，没有检查是否是用户主动刷新
-    dispatch({ type: 'CLEAR_FILTERS' });
-  }, []);  // Bug: 空依赖数组意味着每次挂载都执行
 
   const handleSearch = (e) => {
     dispatch({
