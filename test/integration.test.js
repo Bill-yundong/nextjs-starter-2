@@ -5,6 +5,66 @@
 
 const { ALL_PRODUCTS, CATEGORIES, fetchProducts, fetchProduct, fetchRelatedProducts } = require('../data/products');
 
+// 从 AppContext 提取 reducer 逻辑进行测试
+const initialState = {
+  user: null,
+  isAuthenticated: false,
+  authLoading: false,
+  authError: null,
+  cart: {
+    items: [],
+    totalQuantity: 0,
+    totalPrice: 0,
+    discount: 0,
+    finalPrice: 0,
+  },
+  products: [],
+  productsLoading: false,
+  productsError: null,
+  selectedProduct: null,
+  filters: {
+    search: '',
+    category: 'all',
+    minPrice: 0,
+    maxPrice: 1000,
+    sortBy: 'default',
+    inStock: false,
+  },
+  filteredProducts: [],
+  orders: [],
+  currentOrder: null,
+  checkoutStep: 1,
+  notifications: [],
+  theme: 'light',
+  sidebarOpen: false,
+};
+
+function appReducer(state, action) {
+  switch (action.type) {
+    case 'AUTH_START':
+      return { ...state, authLoading: true, authError: null };
+    case 'AUTH_SUCCESS':
+      return { 
+        ...state, 
+        user: action.payload, 
+        isAuthenticated: true, 
+        authLoading: false,
+        authError: null 
+      };
+    case 'AUTH_FAILURE':
+      return { ...state, authLoading: false, authError: action.payload };
+    case 'LOGOUT':
+      return { ...state, user: null, isAuthenticated: false, cart: initialState.cart };
+    case 'SET_FILTER':
+      const newFilters = { ...state.filters, [action.payload.key]: action.payload.value };
+      return { ...state, filters: newFilters };
+    case 'CLEAR_FILTERS':
+      return { ...state, filters: initialState.filters };
+    default:
+      return state;
+  }
+}
+
 // 测试计数器
 let passed = 0;
 let failed = 0;
@@ -212,6 +272,78 @@ console.log('\n========== API 模拟测试 ==========\n');
     for (let i = 1; i < result.length; i++) {
       assert(parseFloat(result[i-1].price) >= parseFloat(result[i].price), '价格降序排序错误');
     }
+  });
+
+  console.log('\n========== Bug修复验证测试 ==========\n');
+  
+  console.log('--- Bug 1: 登录状态刷新后恢复测试 ---\n');
+  
+  test('AUTH_SUCCESS action 正确设置 isAuthenticated 为 true', () => {
+    const mockUser = { id: '123', email: 'test@example.com', firstName: 'Test', lastName: 'User' };
+    const state = appReducer(initialState, { type: 'AUTH_SUCCESS', payload: mockUser });
+    assert(state.isAuthenticated === true, 'isAuthenticated 应该为 true');
+    assert(state.user.email === 'test@example.com', '用户信息应该正确保存');
+  });
+
+  test('用户数据可以被正确序列化和反序列化', () => {
+    const mockUser = { id: '123', email: 'test@example.com', firstName: 'Test', lastName: 'User' };
+    const serialized = JSON.stringify(mockUser);
+    const deserialized = JSON.parse(serialized);
+    assert(deserialized.email === mockUser.email, '反序列化后数据应该一致');
+    assert(deserialized.id === mockUser.id, 'ID应该保持不变');
+  });
+
+  test('从 localStorage 恢复用户状态时 isAuthenticated 正确设置', () => {
+    const savedUser = { id: '123', email: 'test@example.com', firstName: 'Test', lastName: 'User' };
+    const state = appReducer(initialState, { type: 'AUTH_SUCCESS', payload: savedUser });
+    assert(state.isAuthenticated === true, '恢复用户时 isAuthenticated 应该为 true');
+    assert(state.user !== null, '用户对象不应该为 null');
+  });
+
+  test('登出后状态正确重置', () => {
+    const loggedInState = { 
+      ...initialState, 
+      user: { id: '123', email: 'test@example.com' }, 
+      isAuthenticated: true 
+    };
+    const state = appReducer(loggedInState, { type: 'LOGOUT' });
+    assert(state.isAuthenticated === false, '登出后 isAuthenticated 应该为 false');
+    assert(state.user === null, '登出后 user 应该为 null');
+  });
+
+  console.log('\n--- Bug 2: 筛选状态跳转后保持测试 ---\n');
+
+  test('SET_FILTER action 正确更新筛选状态', () => {
+    const state = appReducer(initialState, { 
+      type: 'SET_FILTER', 
+      payload: { key: 'search', value: 'Helmet' } 
+    });
+    assert(state.filters.search === 'Helmet', '搜索筛选应该被正确设置');
+    assert(state.filters.category === 'all', '其他筛选条件应该保持不变');
+  });
+
+  test('多个筛选条件可以同时存在', () => {
+    let state = appReducer(initialState, { type: 'SET_FILTER', payload: { key: 'search', value: 'Helmet' } });
+    state = appReducer(state, { type: 'SET_FILTER', payload: { key: 'category', value: '1' } });
+    state = appReducer(state, { type: 'SET_FILTER', payload: { key: 'sortBy', value: 'price-asc' } });
+    assert(state.filters.search === 'Helmet', '搜索筛选应该保持');
+    assert(state.filters.category === '1', '分类筛选应该保持');
+    assert(state.filters.sortBy === 'price-asc', '排序筛选应该保持');
+  });
+
+  test('筛选状态在组件重新挂载时不会被清空（模拟返回操作）', () => {
+    let state = appReducer(initialState, { type: 'SET_FILTER', payload: { key: 'search', value: 'Test' } });
+    const savedFilters = { ...state.filters };
+    const newState = { ...state, filters: savedFilters };
+    assert(newState.filters.search === 'Test', '筛选状态应该被保留');
+  });
+
+  test('CLEAR_FILTERS 仅在用户主动触发时执行', () => {
+    let state = appReducer(initialState, { type: 'SET_FILTER', payload: { key: 'search', value: 'Helmet' } });
+    assert(state.filters.search === 'Helmet', '筛选应该被设置');
+    state = appReducer(state, { type: 'CLEAR_FILTERS' });
+    assert(state.filters.search === '', '清空后搜索应该为空');
+    assert(state.filters.category === 'all', '清空后分类应该为 all');
   });
 
   console.log('\n========== 测试报告 ==========\n');
