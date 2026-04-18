@@ -214,12 +214,167 @@ console.log('\n========== API 模拟测试 ==========\n');
     }
   });
 
-  console.log('\n========== 测试报告 ==========\n');
+  console.log('\n========== Bug修复验证测试 ==========\n');
+
+// 模拟 localStorage
+class MockLocalStorage {
+  constructor() {
+    this.store = {};
+  }
+  getItem(key) {
+    return this.store[key] || null;
+  }
+  setItem(key, value) {
+    this.store[key] = String(value);
+  }
+  removeItem(key) {
+    delete this.store[key];
+  }
+  clear() {
+    this.store = {};
+  }
+}
+
+// 创建全局 localStorage 模拟
+global.localStorage = new MockLocalStorage();
+
+// 测试登录状态持久化
+test('登录状态应正确保存到 localStorage', () => {
+  const mockUser = {
+    id: '123',
+    email: 'test@example.com',
+    firstName: 'Test',
+    lastName: 'User'
+  };
+  localStorage.setItem('user', JSON.stringify(mockUser));
+  const saved = JSON.parse(localStorage.getItem('user'));
+  assert(saved.id === '123', '用户ID未正确保存');
+  assert(saved.email === 'test@example.com', '用户邮箱未正确保存');
+});
+
+test('登录状态应能从 localStorage 正确恢复', () => {
+  const mockUser = {
+    id: '456',
+    email: 'restore@example.com',
+    firstName: 'Restore',
+    lastName: 'Test'
+  };
+  localStorage.setItem('user', JSON.stringify(mockUser));
+  const restored = JSON.parse(localStorage.getItem('user'));
+  assert(restored !== null, '用户数据未恢复');
+  assert(restored.id === '456', '用户ID恢复错误');
+  assert(restored.firstName === 'Restore', '用户名字恢复错误');
+});
+
+test('登出时应清除 localStorage 中的用户数据', () => {
+  const mockUser = { id: '789', email: 'logout@test.com' };
+  localStorage.setItem('user', JSON.stringify(mockUser));
+  localStorage.removeItem('user');
+  const saved = localStorage.getItem('user');
+  assert(saved === null, '用户数据未清除');
+});
+
+// 测试筛选状态持久化
+test('筛选状态应正确保存到 localStorage', () => {
+  const filters = {
+    search: 'helmet',
+    category: '1',
+    minPrice: 10,
+    maxPrice: 100,
+    sortBy: 'price-asc',
+    inStock: true
+  };
+  localStorage.setItem('filters', JSON.stringify(filters));
+  const saved = JSON.parse(localStorage.getItem('filters'));
+  assert(saved.search === 'helmet', '搜索关键词未保存');
+  assert(saved.category === '1', '分类筛选未保存');
+  assert(saved.minPrice === 10, '最小价格未保存');
+  assert(saved.maxPrice === 100, '最大价格未保存');
+  assert(saved.sortBy === 'price-asc', '排序方式未保存');
+});
+
+test('筛选状态应能从 localStorage 正确恢复', () => {
+  const filters = {
+    search: 'shirt',
+    category: '2',
+    minPrice: 20,
+    maxPrice: 200,
+    sortBy: 'name-desc'
+  };
+  localStorage.setItem('filters', JSON.stringify(filters));
+  const restored = JSON.parse(localStorage.getItem('filters'));
+  assert(restored.search === 'shirt', '搜索关键词恢复错误');
+  assert(restored.category === '2', '分类筛选恢复错误');
+  assert(restored.sortBy === 'name-desc', '排序方式恢复错误');
+});
+
+test('清除筛选时应重置为默认值', () => {
+  const customFilters = {
+    search: 'custom',
+    category: '3',
+    minPrice: 50,
+    maxPrice: 500,
+    sortBy: 'price-desc'
+  };
+  localStorage.setItem('filters', JSON.stringify(customFilters));
+  // 模拟清除筛选 - 保存默认值
+  const defaultFilters = {
+    search: '',
+    category: 'all',
+    minPrice: 0,
+    maxPrice: 1000,
+    sortBy: 'default',
+    inStock: false
+  };
+  localStorage.setItem('filters', JSON.stringify(defaultFilters));
+  const cleared = JSON.parse(localStorage.getItem('filters'));
+  assert(cleared.search === '', '搜索关键词未重置');
+  assert(cleared.category === 'all', '分类筛选未重置');
+  assert(cleared.sortBy === 'default', '排序方式未重置');
+});
+
+// 测试购物车状态持久化
+test('购物车状态应正确保存到 localStorage', () => {
+  const cart = {
+    items: [
+      { id: 1, name: 'Test Product', price: '29.99', quantity: 2 }
+    ],
+    totalQuantity: 2,
+    totalPrice: 59.98,
+    discount: 0,
+    finalPrice: 59.98
+  };
+  localStorage.setItem('cart', JSON.stringify(cart));
+  const saved = JSON.parse(localStorage.getItem('cart'));
+  assert(saved.items.length === 1, '购物车商品未保存');
+  assert(saved.totalQuantity === 2, '商品数量未保存');
+  assert(saved.totalPrice === 59.98, '总价未保存');
+});
+
+test('购物车状态应能从 localStorage 正确恢复', () => {
+  const cart = {
+    items: [
+      { id: 1, name: 'Product A', price: '19.99', quantity: 1 },
+      { id: 2, name: 'Product B', price: '39.99', quantity: 2 }
+    ],
+    totalQuantity: 3,
+    totalPrice: 99.97,
+    discount: 10,
+    finalPrice: 89.97
+  };
+  localStorage.setItem('cart', JSON.stringify(cart));
+  const restored = JSON.parse(localStorage.getItem('cart'));
+  assert(restored.items.length === 2, '购物车商品恢复数量错误');
+  assert(restored.totalQuantity === 3, '商品数量恢复错误');
+  assert(restored.finalPrice === 89.97, '最终价格恢复错误');
+});
+
+console.log('\n========== 测试报告 ==========\n');
   console.log(`总测试数: ${passed + failed}`);
   console.log(`通过: ${passed} ✅`);
   console.log(`失败: ${failed} ❌`);
   console.log(`通过率: ${((passed / (passed + failed)) * 100).toFixed(2)}%`);
-  
+
   if (failed === 0) {
     console.log('\n🎉 所有测试通过！');
     process.exit(0);

@@ -6,7 +6,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "seed": "node prisma/seed.js"
+    "seed": "node prisma/seed.js",
+    "test": "node test/integration.test.js"
   },
   "dependencies": {
     "@prisma/client": "^3.8.1",
