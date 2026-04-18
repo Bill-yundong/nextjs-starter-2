@@ -257,87 +257,70 @@ const AppContext = createContext();
 // Provider
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
-  
-  // Bug 6: 状态恢复逻辑存在hydration问题
-  // 在服务端渲染时localStorage不可用，但恢复逻辑没有正确处理
-  const [isHydrated, setIsHydrated] = useState(false);
-  
-  // 保存到 localStorage - 必须在条件return之前
-  useEffect(() => {
-    localStorage.setItem('cart', JSON.stringify(state.cart));
-  }, [state.cart]);
-  
-  useEffect(() => {
-    if (state.user) {
-      localStorage.setItem('user', JSON.stringify(state.user));
-    } else {
-      localStorage.removeItem('user');
-    }
-  }, [state.user]);
+  const [isRestored, setIsRestored] = useState(false);
 
-  // 保存筛选状态到 localStorage
+  // 从 localStorage 恢复状态 - 只在组件挂载时执行一次
   useEffect(() => {
-    localStorage.setItem('filters', JSON.stringify(state.filters));
-  }, [state.filters]);
-  
-  useEffect(() => {
-    const timer = setTimeout(() => {
+    if (isRestored) return;
+
+    try {
       const savedCart = localStorage.getItem('cart');
       const savedUser = localStorage.getItem('user');
       const savedFilters = localStorage.getItem('filters');
 
       if (savedCart) {
-        try {
-          const parsed = JSON.parse(savedCart);
-          dispatch({ type: 'CART_RESTORE', payload: parsed });
-        } catch (e) {
-          console.error('Failed to parse cart', e);
-        }
+        const parsed = JSON.parse(savedCart);
+        dispatch({ type: 'CART_RESTORE', payload: parsed });
       }
 
       // 恢复用户登录状态
       if (savedUser) {
-        try {
-          const parsed = JSON.parse(savedUser);
-          dispatch({
-            type: 'AUTH_SUCCESS',
-            payload: parsed
-          });
-        } catch (e) {
-          console.error('Failed to parse user', e);
-        }
+        const parsed = JSON.parse(savedUser);
+        dispatch({
+          type: 'AUTH_SUCCESS',
+          payload: parsed
+        });
       }
 
       // 恢复筛选状态
       if (savedFilters) {
-        try {
-          const parsed = JSON.parse(savedFilters);
-          // 恢复每个筛选条件
-          Object.entries(parsed).forEach(([key, value]) => {
-            dispatch({
-              type: 'SET_FILTER',
-              payload: { key, value }
-            });
+        const parsed = JSON.parse(savedFilters);
+        Object.entries(parsed).forEach(([key, value]) => {
+          dispatch({
+            type: 'SET_FILTER',
+            payload: { key, value }
           });
-        } catch (e) {
-          console.error('Failed to parse filters', e);
-        }
+        });
       }
+    } catch (e) {
+      console.error('Failed to restore state from localStorage:', e);
+    }
 
-      setIsHydrated(true);
-    }, 100);
+    setIsRestored(true);
+  }, [isRestored]);
 
-    return () => clearTimeout(timer);
-  }, []);
-  
-  // Bug 6: 在hydration完成前返回loading状态
-  if (!isHydrated) {
-    // 这个null会导致页面闪烁
-    return null;
-  }
-  
+  // 保存到 localStorage
+  useEffect(() => {
+    if (!isRestored) return;
+    localStorage.setItem('cart', JSON.stringify(state.cart));
+  }, [state.cart, isRestored]);
+
+  useEffect(() => {
+    if (!isRestored) return;
+    if (state.user) {
+      localStorage.setItem('user', JSON.stringify(state.user));
+    } else {
+      localStorage.removeItem('user');
+    }
+  }, [state.user, isRestored]);
+
+  useEffect(() => {
+    if (!isRestored) return;
+    localStorage.setItem('filters', JSON.stringify(state.filters));
+  }, [state.filters, isRestored]);
+
   return (
-    <AppContext.Provider value={{ state, dispatch }}>
+    <AppContext.Provider value={{ state, dispatch, isRestored }}>
       {children}
     </AppContext.Provider>
   );
