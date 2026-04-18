@@ -258,64 +258,53 @@ const AppContext = createContext();
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
   
-  // Bug 6: 状态恢复逻辑存在hydration问题
-  // 在服务端渲染时localStorage不可用，但恢复逻辑没有正确处理
   const [isHydrated, setIsHydrated] = useState(false);
   
-  // 保存到 localStorage - 必须在条件return之前
   useEffect(() => {
-    localStorage.setItem('cart', JSON.stringify(state.cart));
-  }, [state.cart]);
-  
-  useEffect(() => {
-    if (state.user) {
-      localStorage.setItem('user', JSON.stringify(state.user));
-    } else {
-      localStorage.removeItem('user');
-    }
-  }, [state.user]);
-  
-  useEffect(() => {
-    // Bug: 延迟hydration完成标记，导致页面先显示未登录状态
-    const timer = setTimeout(() => {
-      const savedCart = localStorage.getItem('cart');
-      const savedUser = localStorage.getItem('user');
-      
-      if (savedCart) {
-        try {
-          const parsed = JSON.parse(savedCart);
-          dispatch({ type: 'CART_RESTORE', payload: parsed });
-        } catch (e) {
-          console.error('Failed to parse cart', e);
-        }
-      }
-      
-      // Bug: 用户恢复逻辑有问题 - 只恢复部分字段
-      if (savedUser) {
-        try {
-          const parsed = JSON.parse(savedUser);
-          // Bug: 故意丢失isAuthenticated字段，导致用户对象不完整
-          dispatch({ 
-            type: 'AUTH_SUCCESS', 
-            payload: { 
-              ...parsed,
-              isAuthenticated: undefined  // Bug: 覆盖掉正确的状态
-            } 
-          });
-        } catch (e) {
-          console.error('Failed to parse user', e);
-        }
-      }
-      
-      setIsHydrated(true);
-    }, 100);
+    const savedCart = localStorage.getItem('cart');
+    const savedUser = localStorage.getItem('user');
     
-    return () => clearTimeout(timer);
+    if (savedCart) {
+      try {
+        const parsed = JSON.parse(savedCart);
+        dispatch({ type: 'CART_RESTORE', payload: parsed });
+      } catch (e) {
+        console.error('Failed to parse cart', e);
+      }
+    }
+    
+    if (savedUser) {
+      try {
+        const parsed = JSON.parse(savedUser);
+        dispatch({ 
+          type: 'AUTH_SUCCESS', 
+          payload: parsed
+        });
+      } catch (e) {
+        console.error('Failed to parse user', e);
+      }
+    }
+    
+    setIsHydrated(true);
   }, []);
   
-  // Bug 6: 在hydration完成前返回loading状态
+  useEffect(() => {
+    if (isHydrated) {
+      localStorage.setItem('cart', JSON.stringify(state.cart));
+    }
+  }, [state.cart, isHydrated]);
+  
+  useEffect(() => {
+    if (isHydrated) {
+      if (state.user) {
+        localStorage.setItem('user', JSON.stringify(state.user));
+      } else {
+        localStorage.removeItem('user');
+      }
+    }
+  }, [state.user, isHydrated]);
+  
   if (!isHydrated) {
-    // 这个null会导致页面闪烁
     return null;
   }
   
