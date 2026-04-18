@@ -290,17 +290,12 @@ export function AppProvider({ children }) {
         }
       }
       
-      // Bug: 用户恢复逻辑有问题 - 只恢复部分字段
       if (savedUser) {
         try {
           const parsed = JSON.parse(savedUser);
-          // Bug: 故意丢失isAuthenticated字段，导致用户对象不完整
           dispatch({ 
             type: 'AUTH_SUCCESS', 
-            payload: { 
-              ...parsed,
-              isAuthenticated: undefined  // Bug: 覆盖掉正确的状态
-            } 
+            payload: parsed
           });
         } catch (e) {
           console.error('Failed to parse user', e);
