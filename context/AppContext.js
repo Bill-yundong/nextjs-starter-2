@@ -134,7 +134,7 @@ function appReducer(state, action) {
       return { 
         ...state, 
         products: action.payload, 
-        filteredProducts: action.payload,
+        filteredProducts: applyFilters(action.payload, state.filters),
         productsLoading: false,
         productsError: null 
       };
