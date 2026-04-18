@@ -274,13 +274,18 @@ export function AppProvider({ children }) {
       localStorage.removeItem('user');
     }
   }, [state.user]);
+
+  // 保存筛选状态到 localStorage
+  useEffect(() => {
+    localStorage.setItem('filters', JSON.stringify(state.filters));
+  }, [state.filters]);
   
   useEffect(() => {
-    // Bug: 延迟hydration完成标记，导致页面先显示未登录状态
     const timer = setTimeout(() => {
       const savedCart = localStorage.getItem('cart');
       const savedUser = localStorage.getItem('user');
-      
+      const savedFilters = localStorage.getItem('filters');
+
       if (savedCart) {
         try {
           const parsed = JSON.parse(savedCart);
@@ -289,27 +294,39 @@ export function AppProvider({ children }) {
           console.error('Failed to parse cart', e);
         }
       }
-      
-      // Bug: 用户恢复逻辑有问题 - 只恢复部分字段
+
+      // 恢复用户登录状态
       if (savedUser) {
         try {
           const parsed = JSON.parse(savedUser);
-          // Bug: 故意丢失isAuthenticated字段，导致用户对象不完整
-          dispatch({ 
-            type: 'AUTH_SUCCESS', 
-            payload: { 
-              ...parsed,
-              isAuthenticated: undefined  // Bug: 覆盖掉正确的状态
-            } 
+          dispatch({
+            type: 'AUTH_SUCCESS',
+            payload: parsed
           });
         } catch (e) {
           console.error('Failed to parse user', e);
         }
       }
-      
+
+      // 恢复筛选状态
+      if (savedFilters) {
+        try {
+          const parsed = JSON.parse(savedFilters);
+          // 恢复每个筛选条件
+          Object.entries(parsed).forEach(([key, value]) => {
+            dispatch({
+              type: 'SET_FILTER',
+              payload: { key, value }
+            });
+          });
+        } catch (e) {
+          console.error('Failed to parse filters', e);
+        }
+      }
+
       setIsHydrated(true);
     }, 100);
-    
+
     return () => clearTimeout(timer);
   }, []);
   
